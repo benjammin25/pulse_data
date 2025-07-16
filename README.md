@@ -156,17 +156,6 @@ The system automatically selects the most appropriate forecasting model based on
 - **Growth Rate**: Monthly and total growth percentages
 - **Model Performance**: R², MAE, RMSE, Cross-validation scores
 
-## 🔍 Lifestage Codes
-
-| Code | Description | Code | Description |
-|------|-------------|------|-------------|
-| `Full` | Complete dataset | `Y1` | Year 1 customers |
-| `Y2` | Year 2 customers | `Y3` | Year 3 customers |
-| `F1` | Phase 1 customers | `F2` | Phase 2 customers |
-| `F3` | Phase 3 customers | `M1` | Month 1 customers |
-| `M2` | Month 2 customers | `M3` | Month 3 customers |
-| `M4` | Month 4 customers | | |
-
 ## 🎨 Visualization Features
 
 - **MRR Trend Analysis**: Historical and projected revenue curves
