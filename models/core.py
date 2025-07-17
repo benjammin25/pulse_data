@@ -6,12 +6,17 @@ import matplotlib.pyplot as plt
 
 def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type):
     """
-    Common model execution logic shared by all three models
+    Common model execution logic shared by all models - now supports 15-feature stabilized Net New MRR segmentation model
     """
-    # Clean data
+    # Clean data - MORE AGGRESSIVE CLEANING
     if not np.isfinite(X).all():
         print("Warning: Found non-finite values in features. Cleaning...")
         X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+    
+    # Additional check for any remaining NaNs
+    if np.isnan(X).any():
+        print("Warning: Still found NaN values after cleaning. Replacing with zeros...")
+        X = np.where(np.isnan(X), 0.0, X)
     
     # Display data info
     print(f"📅 Data covers from {df['Month'].min().strftime('%Y-%m')} to {df['Month'].max().strftime('%Y-%m')}")
@@ -40,23 +45,50 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
     last_month_seq = df['Month_Sequential'].max()
     future_months_seq = np.arange(last_month_seq + 1, last_month_seq + 1 + months_to_project)
     last_date = df['Month'].max()
-    future_dates = pd.date_range(start=last_date + pd.DateOffset(months=1), periods=months_to_project, freq='M')
+    
+    # Fix the deprecated 'M' warning by using 'ME' (Month End)
+    future_dates = pd.date_range(start=last_date + pd.DateOffset(months=1), periods=months_to_project, freq='ME')
     future_month_nums = [future_date.month for future_date in future_dates]
     
     # Get recent values based on feature count
     feature_count = X.shape[1]
     
-    if feature_count == 11:  # Full dataset
+    if feature_count == 15:  # Enhanced Full dataset with stabilized Net New MRR segmentation features
+        future_X = np.column_stack([
+            future_months_seq,
+            [df['New MRR'].iloc[-3:].mean() if len(df) >= 3 else df['New MRR'].iloc[-1]] * months_to_project,
+            [df['Churn'].iloc[-3:].mean() if len(df) >= 3 else df['Churn'].iloc[-1]] * months_to_project,
+            [df['Ending Count'].iloc[-1]] * months_to_project,
+            [df['ARPU'].iloc[-1]] * months_to_project,
+            [df['Take_Rate'].iloc[-1] if 'Take_Rate' in df.columns else 0.75] * months_to_project,
+            future_month_nums,  # Month_Number for seasonal effects
+            [df['Churn_Rate'].iloc[-3:].mean() if len(df) >= 3 else df['Churn_Rate'].iloc[-1]] * months_to_project,
+            [0] * months_to_project,  # Base = 0 for future (no more expansion)
+            # Stabilized Net New MRR segmentation features - use recent values with error handling
+            [df['young_early_net_new_mrr'].iloc[-1] if 'young_early_net_new_mrr' in df.columns else 0] * months_to_project,
+            [df['family_early_net_new_mrr'].iloc[-1] if 'family_early_net_new_mrr' in df.columns else 0] * months_to_project,
+            [df['mature_early_net_new_mrr'].iloc[-1] if 'mature_early_net_new_mrr' in df.columns else 0] * months_to_project,
+            [df['mature_late_net_new_mrr'].iloc[-1] if 'mature_late_net_new_mrr' in df.columns else 0] * months_to_project,
+            [df['other_late_net_new_mrr'].iloc[-1] if 'other_late_net_new_mrr' in df.columns else 0] * months_to_project,
+            [df['total_early_net_new_mrr'].iloc[-1] if 'total_early_net_new_mrr' in df.columns else 0] * months_to_project
+        ])
+        feature_names = [
+            "Month_Sequential", "New MRR", "Churn", "Ending Count", "ARPU",
+            "Take_Rate", "Month_Number", "Churn_Rate", "Base",
+            "young_early_net_new_mrr", "family_early_net_new_mrr", "mature_early_net_new_mrr",
+            "mature_late_net_new_mrr", "other_late_net_new_mrr", "total_early_net_new_mrr"
+        ]
+    elif feature_count == 11:  # Full dataset
         future_X = np.column_stack([
             future_months_seq, future_month_nums,
-            [df['New MRR'].iloc[-3:].mean()] * months_to_project,  # Use averages for Full
-            [df['Churn'].iloc[-3:].mean()] * months_to_project,
+            [df['New MRR'].iloc[-3:].mean() if len(df) >= 3 else df['New MRR'].iloc[-1]] * months_to_project,
+            [df['Churn'].iloc[-3:].mean() if len(df) >= 3 else df['Churn'].iloc[-1]] * months_to_project,
             [df['Ending Count'].iloc[-1]] * months_to_project,
             [df['Ending PARPU'].iloc[-1]] * months_to_project,
             [df['Starting MRR'].iloc[-1]] * months_to_project,
             [df['Starting PARPU'].iloc[-1]] * months_to_project,
             [df['ARPU'].iloc[-1]] * months_to_project,
-            [df['Churn_Rate'].iloc[-3:].mean()] * months_to_project,
+            [df['Churn_Rate'].iloc[-3:].mean() if len(df) >= 3 else df['Churn_Rate'].iloc[-1]] * months_to_project,
             [0] * months_to_project  # Base = 0 for future (no more expansion)
         ])
         feature_names = ["Month_Sequential", "Month_Number", "New MRR", "Churn", 
@@ -89,6 +121,16 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
             [df['Churn'].iloc[-1]] * months_to_project
         ])
         feature_names = ["Month_Sequential", "New MRR", "Churn"]
+    
+    # CRITICAL: Clean future_X before prediction
+    if not np.isfinite(future_X).all():
+        print("Warning: Found non-finite values in future features. Cleaning...")
+        future_X = np.nan_to_num(future_X, nan=0.0, posinf=0.0, neginf=0.0)
+    
+    # Additional check for any remaining NaNs in future_X
+    if np.isnan(future_X).any():
+        print("Warning: Still found NaN values in future features. Replacing with zeros...")
+        future_X = np.where(np.isnan(future_X), 0.0, future_X)
     
     # Make predictions
     future_mrr = poly_pipeline.predict(future_X)
@@ -129,20 +171,43 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
     all_dates = pd.concat([df['Month'], pd.Series(future_dates)])
     
     # Build all_X based on feature count for trend line
-    if feature_count == 11:  # Full dataset
+    if feature_count == 15:  # Enhanced Full dataset with stabilized Net New MRR segmentation
+        # Create month numbers for trend line
+        historical_month_nums = df['Month'].dt.month.tolist()
+        all_month_nums = historical_month_nums + future_month_nums
+        
+        all_X_trend = np.column_stack([
+            all_months_seq,
+            np.concatenate([df['New MRR'], [df['New MRR'].iloc[-3:].mean() if len(df) >= 3 else df['New MRR'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['Churn'], [df['Churn'].iloc[-3:].mean() if len(df) >= 3 else df['Churn'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['Ending Count'], [df['Ending Count'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['ARPU'], [df['ARPU'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['Take_Rate'] if 'Take_Rate' in df.columns else [0.75] * len(df), [df['Take_Rate'].iloc[-1] if 'Take_Rate' in df.columns else 0.75] * months_to_project]),
+            all_month_nums,
+            np.concatenate([df['Churn_Rate'], [df['Churn_Rate'].iloc[-3:].mean() if len(df) >= 3 else df['Churn_Rate'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['Base'], [0] * months_to_project]),
+            # Stabilized Net New MRR segmentation features
+            np.concatenate([df['young_early_net_new_mrr'] if 'young_early_net_new_mrr' in df.columns else [0] * len(df), [df['young_early_net_new_mrr'].iloc[-1] if 'young_early_net_new_mrr' in df.columns else 0] * months_to_project]),
+            np.concatenate([df['family_early_net_new_mrr'] if 'family_early_net_new_mrr' in df.columns else [0] * len(df), [df['family_early_net_new_mrr'].iloc[-1] if 'family_early_net_new_mrr' in df.columns else 0] * months_to_project]),
+            np.concatenate([df['mature_early_net_new_mrr'] if 'mature_early_net_new_mrr' in df.columns else [0] * len(df), [df['mature_early_net_new_mrr'].iloc[-1] if 'mature_early_net_new_mrr' in df.columns else 0] * months_to_project]),
+            np.concatenate([df['mature_late_net_new_mrr'] if 'mature_late_net_new_mrr' in df.columns else [0] * len(df), [df['mature_late_net_new_mrr'].iloc[-1] if 'mature_late_net_new_mrr' in df.columns else 0] * months_to_project]),
+            np.concatenate([df['other_late_net_new_mrr'] if 'other_late_net_new_mrr' in df.columns else [0] * len(df), [df['other_late_net_new_mrr'].iloc[-1] if 'other_late_net_new_mrr' in df.columns else 0] * months_to_project]),
+            np.concatenate([df['total_early_net_new_mrr'] if 'total_early_net_new_mrr' in df.columns else [0] * len(df), [df['total_early_net_new_mrr'].iloc[-1] if 'total_early_net_new_mrr' in df.columns else 0] * months_to_project])
+        ])
+    elif feature_count == 11:  # Full dataset
         all_month_nums = [date.month for date in all_dates]
         all_X_trend = np.column_stack([
             all_months_seq, all_month_nums,
-            np.concatenate([df['New MRR'], [df['New MRR'].iloc[-3:].mean()] * months_to_project]),
-            np.concatenate([df['Churn'], [df['Churn'].iloc[-3:].mean()] * months_to_project]),
+            np.concatenate([df['New MRR'], [df['New MRR'].iloc[-3:].mean() if len(df) >= 3 else df['New MRR'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['Churn'], [df['Churn'].iloc[-3:].mean() if len(df) >= 3 else df['Churn'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Ending Count'], [df['Ending Count'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Ending PARPU'], [df['Ending PARPU'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Starting MRR'], [df['Starting MRR'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Starting PARPU'], [df['Starting PARPU'].iloc[-1]] * months_to_project]),
             np.concatenate([df['ARPU'], [df['ARPU'].iloc[-1]] * months_to_project]),
-            np.concatenate([df['Churn_Rate'], [df['Churn_Rate'].iloc[-3:].mean()] * months_to_project]),
+            np.concatenate([df['Churn_Rate'], [df['Churn_Rate'].iloc[-3:].mean() if len(df) >= 3 else df['Churn_Rate'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Base'], [0] * months_to_project])  # Base = 0 for future
-    ])
+        ])
     elif feature_count == 7:  # Large segment
         all_month_nums = [date.month for date in all_dates]
         all_X_trend = np.column_stack([
@@ -167,6 +232,10 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
             np.concatenate([df['New MRR'], [df['New MRR'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Churn'], [df['Churn'].iloc[-1]] * months_to_project])
         ])
+    
+    # Clean trend data before prediction
+    if not np.isfinite(all_X_trend).all():
+        all_X_trend = np.nan_to_num(all_X_trend, nan=0.0, posinf=0.0, neginf=0.0)
     
     all_predictions = poly_pipeline.predict(all_X_trend)
     plt.plot(all_dates, all_predictions, 'g:', alpha=0.8, linewidth=2, label='Polynomial Trend (Degree 2)')

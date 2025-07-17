@@ -10,6 +10,23 @@ from setup_output import setup_output_structure
 
 
 """
+def base_added_per_month(df_filtered_customers):
+    
+    # Get sites where this segment's customers are located
+    relevant_sites = df_filtered_customers['Site_ID'].unique()
+    
+    # Load clean site data
+    sites_df = pd.read_csv('raw_data/sites_table.csv')  # Or wherever you store it
+    segment_sites = sites_df[sites_df['Site_ID'].isin(relevant_sites)]
+    
+    # Clean aggregation - no duplicates to worry about!
+    segment_sites["Site Release Month"] = pd.to_datetime(segment_sites["Site Release Date"]).dt.to_period("M")
+    base_added = segment_sites.groupby("Site Release Month")["Base_Count"].sum().reset_index()
+    base_added.columns = ["Month", "Base_Added"]
+    
+    return base_added
+
+
 def site_opens_per_month(df):
     df["Site Release Month"] = pd.to_datetime(df["Site Release Date"]).dt.to_period("M")
     site_opens = df.groupby("Site Release Month")["Site_ID"].nunique()
@@ -18,10 +35,16 @@ def site_opens_per_month(df):
     return site_opens
 
 def base_added_per_month(df):
-    df["Site Release Month"] = pd.to_datetime(df["Site Release Date"]).dt.to_period("M")  
-    base_added = df.groupby("Site Release Month")["Base_Count"].sum().reset_index()  # If you have base count per site
-    base_added.columns = ["Month", "Base_Added"]
-    return base_added
+    df["Site Release Month"] = pd.to_datetime(df["Site Release Date"]).dt.to_period("M")
+    
+    # Group by Site Release Month AND Site_ID to avoid double-counting
+    base_added = df.groupby(["Site Release Month", "Site_ID"])["Base_Count"].first().reset_index()
+    
+    # Then sum by month to get total base expansion
+    monthly_base = base_added.groupby("Site Release Month")["Base_Count"].sum().reset_index()
+    monthly_base.columns = ["Month", "Base_Added"]
+    
+    return monthly_base
 
 """
 

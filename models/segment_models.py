@@ -5,20 +5,23 @@ from sklearn.linear_model import Lasso
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import Pipeline
 from .core import _run_model
+from .group_segments import create_lifecycle_grouped_features
 import warnings
 from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
 def full_dataset_model(csv_file_path, months_to_project=12):
     """
-    Comprehensive model for Full dataset
-    Uses 10 features with very high alpha for ultra-conservative projections
+    Enhanced comprehensive model for Full dataset with stabilized Net New MRR segmentation features
     """
     lifestage = Path(csv_file_path).parts[-3]
-    print(f"🎯 Full Dataset Model for {lifestage}")
-    print(f"   Tier: Comprehensive | Features: 11 | Alpha: 1.0")
+    print(f"🎯 Enhanced Full Dataset Model for {lifestage}")
+    print(f"   Tier: Comprehensive | Features: 15 | Alpha: 12.0")
+    
+    # Load base data
     df_base = pd.read_csv("raw_data/fake_base_per_month.csv", encoding='latin-1', low_memory=False)
-    # Load and prepare data
+    
+    # Load and prepare main data
     df = pd.read_csv(csv_file_path, encoding='latin-1', low_memory=False)
     df = df.merge(df_base, on='Month_Sequential', how='left')
     df = df[:-1]
@@ -30,10 +33,28 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     df['Churn_Rate'] = df['Churn_Rate'].fillna(0)
     df['Churn_Rate'] = df['Churn_Rate'].replace([np.inf, -np.inf], 0)
     
-    # Comprehensive feature set (10 features)
-    X = df[["Month_Sequential", "Month_Number", "New MRR", "Churn",
-            "Ending Count", "Ending PARPU", "Starting MRR", 
-            "Starting PARPU", "ARPU", "Churn_Rate", "Base"]].values
+    # Add Month Number for seasonal effects
+    df['Month_Number'] = df['Month'].dt.month
+    
+    # Calculate Take Rate as New Count / Base
+    df['Take_Rate'] = np.where(df['Base'] > 0, 
+                               df['New Count'] / df['Base'], 
+                               0)
+    df['Take_Rate'] = df['Take_Rate'].fillna(0)
+    df['Take_Rate'] = df['Take_Rate'].replace([np.inf, -np.inf], 0)
+    
+    # Create stabilized Net New MRR segmentation features
+    segmentation_features = create_lifecycle_grouped_features()
+    
+    # Add segmentation features to main dataframe
+    for feature_name, feature_data in segmentation_features.items():
+        df[feature_name] = feature_data
+    
+    # Enhanced comprehensive feature set (15 features) - STABILIZED NET NEW MRR SEGMENTATION
+    X = df[["Month_Sequential", "New MRR", "Churn", "Ending Count", "ARPU",
+            "Take_Rate", "Month_Number", "Churn_Rate", "Base",
+            "young_early_net_new_mrr", "family_early_net_new_mrr", "mature_early_net_new_mrr",
+            "mature_late_net_new_mrr", "other_late_net_new_mrr", "total_early_net_new_mrr"]].values
     y = df["Ending MRR"].values
     
     # Clean data
@@ -41,14 +62,13 @@ def full_dataset_model(csv_file_path, months_to_project=12):
         print("Warning: Found non-finite values in features. Cleaning...")
         X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
     
-    # Create model with very high alpha for ultra-conservative projections
+    # Create model with optimized alpha for 15 features
     poly_pipeline = Pipeline([
         ('poly', PolynomialFeatures(degree=2, include_bias=False)),
-        ('lasso', Lasso(alpha=1.0))
+        ('lasso', Lasso(alpha=12.0))
     ])
     
-    return _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, "Full Dataset")
-
+    return _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, "Enhanced Full Dataset")
 
 def large_segment_model(csv_file_path, months_to_project=12):
     """
