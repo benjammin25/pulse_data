@@ -26,12 +26,8 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     df = df.merge(df_base, on='Month_Sequential', how='left')
     df = df[:-1]
     df['Month'] = pd.to_datetime(df['Month'])
-    
-    # Calculate Churn Rate
-    df['Churn_Rate'] = np.where(df['Starting Count'] > 0, 
-                                df['Churn Count'] / df['Starting Count'], 0)
-    df['Churn_Rate'] = df['Churn_Rate'].fillna(0)
-    df['Churn_Rate'] = df['Churn_Rate'].replace([np.inf, -np.inf], 0)
+
+ 
     
     # Add Month Number for seasonal effects
     df['Month_Number'] = df['Month'].dt.month
@@ -52,7 +48,7 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     
     # Enhanced comprehensive feature set (15 features) - STABILIZED NET NEW MRR SEGMENTATION
     X = df[["Month_Sequential", "New MRR", "Churn", "Ending Count", "ARPU",
-            "Take_Rate", "Month_Number", "Churn_Rate", "Base",
+            "Take_Rate", "Month_Number", "Starting MRR", "Base",
             "young_early_net_new_mrr", "family_early_net_new_mrr", "mature_early_net_new_mrr",
             "mature_late_net_new_mrr", "other_late_net_new_mrr", "total_early_net_new_mrr"]].values
     y = df["Ending MRR"].values
@@ -84,15 +80,11 @@ def large_segment_model(csv_file_path, months_to_project=12):
     df = df[:-1]
     df['Month'] = pd.to_datetime(df['Month'])
     
-    # Calculate Churn Rate
-    df['Churn_Rate'] = np.where(df['Starting Count'] > 0, 
-                                df['Churn Count'] / df['Starting Count'], 0)
-    df['Churn_Rate'] = df['Churn_Rate'].fillna(0)
-    df['Churn_Rate'] = df['Churn_Rate'].replace([np.inf, -np.inf], 0)
+  
     
     # High-capacity feature set
     X = df[["Month_Sequential", "Month_Number", "New MRR", "Churn", 
-            "Ending Count", "Ending PARPU", "Churn_Rate"]].values
+            "Ending Count", "Ending PARPU", "Starting MRR"]].values
     y = df["Ending MRR"].values
     
     # Create model with low alpha

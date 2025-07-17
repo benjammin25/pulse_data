@@ -62,7 +62,7 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
             [df['ARPU'].iloc[-1]] * months_to_project,
             [df['Take_Rate'].iloc[-1] if 'Take_Rate' in df.columns else 0.75] * months_to_project,
             future_month_nums,  # Month_Number for seasonal effects
-            [df['Churn_Rate'].iloc[-3:].mean() if len(df) >= 3 else df['Churn_Rate'].iloc[-1]] * months_to_project,
+            [df['Starting MRR'].iloc[-3:].mean() if len(df) >= 3 else df['Starting MRR'].iloc[-1]] * months_to_project,
             [0] * months_to_project,  # Base = 0 for future (no more expansion)
             # Stabilized Net New MRR segmentation features - use recent values with error handling
             [df['young_early_net_new_mrr'].iloc[-1] if 'young_early_net_new_mrr' in df.columns else 0] * months_to_project,
@@ -74,7 +74,7 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
         ])
         feature_names = [
             "Month_Sequential", "New MRR", "Churn", "Ending Count", "ARPU",
-            "Take_Rate", "Month_Number", "Churn_Rate", "Base",
+            "Take_Rate", "Month_Number", "Starting MRR", "Base",
             "young_early_net_new_mrr", "family_early_net_new_mrr", "mature_early_net_new_mrr",
             "mature_late_net_new_mrr", "other_late_net_new_mrr", "total_early_net_new_mrr"
         ]
@@ -88,12 +88,12 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
             [df['Starting MRR'].iloc[-1]] * months_to_project,
             [df['Starting PARPU'].iloc[-1]] * months_to_project,
             [df['ARPU'].iloc[-1]] * months_to_project,
-            [df['Churn_Rate'].iloc[-3:].mean() if len(df) >= 3 else df['Churn_Rate'].iloc[-1]] * months_to_project,
+            [df['Starting MRR'].iloc[-3:].mean() if len(df) >= 3 else df['Starting MRR'].iloc[-1]] * months_to_project,
             [0] * months_to_project  # Base = 0 for future (no more expansion)
         ])
         feature_names = ["Month_Sequential", "Month_Number", "New MRR", "Churn", 
                         "Ending Count", "Ending PARPU", "Starting MRR", 
-                        "Starting PARPU", "ARPU", "Churn_Rate", "Base"]
+                        "Starting PARPU", "ARPU", "Starting MRR", "Base"]
     elif feature_count == 7:  # Large segment
         future_X = np.column_stack([
             future_months_seq, future_month_nums,
@@ -101,10 +101,10 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
             [df['Churn'].iloc[-1]] * months_to_project,
             [df['Ending Count'].iloc[-1]] * months_to_project,
             [df['Ending PARPU'].iloc[-1]] * months_to_project,
-            [df['Churn_Rate'].iloc[-1]] * months_to_project
+            [df['Starting MRR'].iloc[-1]] * months_to_project
         ])
         feature_names = ["Month_Sequential", "Month_Number", "New MRR", "Churn", 
-                        "Ending Count", "Ending PARPU", "Churn_Rate"]
+                        "Ending Count", "Ending PARPU", "Starting MRR"]
     elif feature_count == 5:  # Medium segment
         future_X = np.column_stack([
             future_months_seq, 
@@ -184,7 +184,7 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
             np.concatenate([df['ARPU'], [df['ARPU'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Take_Rate'] if 'Take_Rate' in df.columns else [0.75] * len(df), [df['Take_Rate'].iloc[-1] if 'Take_Rate' in df.columns else 0.75] * months_to_project]),
             all_month_nums,
-            np.concatenate([df['Churn_Rate'], [df['Churn_Rate'].iloc[-3:].mean() if len(df) >= 3 else df['Churn_Rate'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['Starting MRR'], [df['Starting MRR'].iloc[-3:].mean() if len(df) >= 3 else df['Starting MRR'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Base'], [0] * months_to_project]),
             # Stabilized Net New MRR segmentation features
             np.concatenate([df['young_early_net_new_mrr'] if 'young_early_net_new_mrr' in df.columns else [0] * len(df), [df['young_early_net_new_mrr'].iloc[-1] if 'young_early_net_new_mrr' in df.columns else 0] * months_to_project]),
@@ -205,7 +205,7 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
             np.concatenate([df['Starting MRR'], [df['Starting MRR'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Starting PARPU'], [df['Starting PARPU'].iloc[-1]] * months_to_project]),
             np.concatenate([df['ARPU'], [df['ARPU'].iloc[-1]] * months_to_project]),
-            np.concatenate([df['Churn_Rate'], [df['Churn_Rate'].iloc[-3:].mean() if len(df) >= 3 else df['Churn_Rate'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['Starting MRR'], [df['Starting MRR'].iloc[-3:].mean() if len(df) >= 3 else df['Starting MRR'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Base'], [0] * months_to_project])  # Base = 0 for future
         ])
     elif feature_count == 7:  # Large segment
@@ -216,7 +216,7 @@ def _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, model_type
             np.concatenate([df['Churn'], [df['Churn'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Ending Count'], [df['Ending Count'].iloc[-1]] * months_to_project]),
             np.concatenate([df['Ending PARPU'], [df['Ending PARPU'].iloc[-1]] * months_to_project]),
-            np.concatenate([df['Churn_Rate'], [df['Churn_Rate'].iloc[-1]] * months_to_project])
+            np.concatenate([df['Starting MRR'], [df['Starting MRR'].iloc[-1]] * months_to_project])
         ])
     elif feature_count == 5:  # Medium segment
         all_X_trend = np.column_stack([
