@@ -16,7 +16,7 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     """
     lifestage = Path(csv_file_path).parts[-3]
     print(f"🎯 Enhanced Full Dataset Model for {lifestage}")
-    print(f"   Tier: Comprehensive | Features: 15 | Alpha: 12.0")
+    print(f"   Tier: Comprehensive | Features: 15 | Alpha: 15.0")
     
     # Load base data
     df_base = pd.read_csv("raw_data/fake_base_per_month.csv", encoding='latin-1', low_memory=False)
@@ -32,12 +32,6 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     # Add Month Number for seasonal effects
     df['Month_Number'] = df['Month'].dt.month
     
-    # Calculate Take Rate as New Count / Base
-    df['Take_Rate'] = np.where(df['Base'] > 0, 
-                               df['New Count'] / df['Base'], 
-                               0)
-    df['Take_Rate'] = df['Take_Rate'].fillna(0)
-    df['Take_Rate'] = df['Take_Rate'].replace([np.inf, -np.inf], 0)
     
     # Create stabilized Net New MRR segmentation features
     segmentation_features = create_lifecycle_grouped_features()
@@ -48,9 +42,9 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     
     # Enhanced comprehensive feature set (15 features) - STABILIZED NET NEW MRR SEGMENTATION
     X = df[["Month_Sequential", "New MRR", "Churn", "Ending Count", "ARPU",
-            "Take_Rate", "Month_Number", "Starting MRR", "Base",
-            "young_early_net_new_mrr", "family_early_net_new_mrr", "mature_early_net_new_mrr",
-            "mature_late_net_new_mrr", "other_late_net_new_mrr", "total_early_net_new_mrr"]].values
+             "Month_Number", "Starting MRR", "Base", "Expansion", "Starting Count", "New Count",  
+              "young_early_net_new_mrr", "mature_early_net_new_mrr", "mature_late_net_new_mrr", "family_early_net_new_mrr"
+            ]].values
     y = df["Ending MRR"].values
     
     # Clean data
@@ -61,7 +55,7 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     # Create model with optimized alpha for 15 features
     poly_pipeline = Pipeline([
         ('poly', PolynomialFeatures(degree=2, include_bias=False)),
-        ('lasso', Lasso(alpha=12.0))
+        ('lasso', Lasso(alpha=15.0))
     ])
     
     return _run_model(df, X, y, poly_pipeline, lifestage, months_to_project, "Enhanced Full Dataset")

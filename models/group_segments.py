@@ -8,9 +8,8 @@ def create_lifecycle_grouped_features():
         'young_early': ["Y1", "Y2"],      # Young customers, early lifecycle
         'family_early': ["F1", "F2"],     # Family customers, early lifecycle  
         'mature_early': ["M1", "M2"],     # Mature customers, early lifecycle
-        'mature_late': ["M3", "M4"],       # Mature customers, late lifecycle
-        'other_late': ["Y3", "F3"],
-        'total_early': ["Y1", "Y2", "F1", "F2", "M1", "M2"]
+        'mature_late': ["M3"]       # Mature customers, late lifecycle
+
     }
     
     # Load all segment data
