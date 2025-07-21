@@ -18,6 +18,88 @@ def analyze_and_handle_missing(df, folders):
     
     return df_cleaned
 
+def filter_on_performance_tier(df, tier):
+    """Filter dataframe by performance tier based on CXN Name"""
+    
+    # Define performance tier mappings based on visual color coding (green/yellow/red)
+    performance_mapping = {
+        'high_performers': [
+            # GREEN segments from your data
+            "You & I Tunes",
+            "WiFi Warriors", 
+            "The Pragmatics",
+            "Plugged-In Families",
+            "Cyber Sophisticates",
+            "Tech Nests",
+            "Tech Skeptics",
+            "Video Vistas",
+            "Dial-Up Duos",
+        ],
+        'moderate_performers': [
+            # YELLOW segments from your data  
+            "Low-Speed Boomers",
+            "Gadgets Galore",
+            "New Technorati",
+            "Technovators",
+            "Multimedia Families",
+            "Kids & Keyboards",
+            "Time Shifters",
+            "Broadband Boulevards",
+            "Opting Out",
+            "Bundled Burbs",
+            "Analoggers",
+            "Smart Gamers",
+            "Connected Country",
+            "Calling Circles",
+            "IM Nation",
+            "Plug & Play",
+            "Cyber Strivers",
+            "Discounts & Deals",
+            "Early-Bird TV",
+            "Internet Hinterlands",
+            "Antenna Land",
+            "High-Tech Society",
+        ],
+        'underperformers': [
+            # RED segments from your data
+            "Big City, Small Tech",
+            "Old-Time Media",
+            "Digital Dreamers",
+            "Bucolic Basics",
+            "Gearing Up",
+            "Satellites & Silos",
+            "Landline Living",
+            "The Unconnected",
+            "Low-Tech Country",
+            "Satellite Seniors",
+            "Generation WiFi",
+            "Rural Transmissions",
+            "Leisurely Adopters",
+            "New Kids on the Grid",
+            "Video Homebodies",
+            "Last to Adopt",
+            "Techs and the City",
+            "Family Dishes",
+            "Dish Country",
+            "Tech-Free Frontier",
+            "Cinemaniacs",
+            "Techtown Lites",
+            "Unassigned",
+        ]
+    }
+    
+    if tier not in performance_mapping:
+        raise ValueError(f"Unknown performance tier: {tier}")
+    
+    cxn_names = performance_mapping[tier]
+    filtered_df = df[df['CXN Name'].isin(cxn_names)].copy()
+    
+    print(f"📊 Filtered for {tier}:")
+    print(f"   CXN Names included: {cxn_names}")
+    print(f"   Rows before filtering: {len(df)}")
+    print(f"   Rows after filtering: {len(filtered_df)}")
+    
+    return filtered_df
 
 def filtering_tagging(filename, folders):
     df_raw = cm.load_and_initial_clean(filename)

@@ -4,7 +4,7 @@ def apply_business_filters(df):
     # Drop unneeded columns
     drop_cols = [
         'Account Name', 'Full Address', 'GIS LOCID', 'User Name', 'CXN Code', 
-        'BH HP ID', 'CXN Name', 'CXN Code and Name', 'City', 'Zip', 'User', 'Week Number (concurrent from 2024)',
+        'BH HP ID', 'City', 'Zip', 'User', 'Week Number (concurrent from 2024)',
         'Week Number', 'System Flag', 'Flag Code', 'Flag Name', 'Period ARPU'
     ]
     df.drop(columns=drop_cols, inplace=True)

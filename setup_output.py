@@ -1,8 +1,8 @@
 from pathlib import Path
 
-def setup_output_structure(lifestage_code='Full'):
-    """Setup organized folder structure for outputs"""
-    base_path = Path('output') / lifestage_code
+def setup_output_structure(performance_tier='Full'):
+    """Setup organized folder structure for performance tier outputs"""
+    base_path = Path('output') / performance_tier
     
     folders = {
         'filtered_data': base_path / 'filtered_data',
@@ -15,7 +15,7 @@ def setup_output_structure(lifestage_code='Full'):
     for folder in folders.values():
         folder.mkdir(parents=True, exist_ok=True)
     
-    print(f"📁 Created output structure for: {lifestage_code}")
+    print(f"📁 Created output structure for: {performance_tier}")
     print(f"   Base path: {base_path}")
     
     return folders

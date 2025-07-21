@@ -102,33 +102,32 @@ def combined_mrr_parpu_calculations(mrr_waterfall_df, df_for_arpu):
 
 
 
-def filter_on_Lifestage(df, code):
-    df = df.copy()
-    df = df[df['Lifestage Code'] == code]
-    return df
 
-def main_pipeline(lifestage_code='Full'):
+
+def main_pipeline(performance_tier='Full'):
+    """Pipeline to process performance tiers instead of lifestage codes"""
+    
     # Setup organized folder structure
-    folders = setup_output_structure(lifestage_code)
+    folders = setup_output_structure(performance_tier)
     
     # Process data with folder structure
     df_deduped = ft.filtering_tagging('raw_data/Added_Packages.csv', folders)
 
-    if lifestage_code != 'Full':
-        df_filtered = filter_on_Lifestage(df_deduped, lifestage_code)
-        print(f"▶️ Processing Lifestage Code: {lifestage_code}")
+    # Filter by performance tier or keep full dataset
+    if performance_tier != 'Full':
+        df_filtered = ft.filter_on_performance_tier(df_deduped, performance_tier)
+        print(f"▶️ Processing Performance Tier: {performance_tier}")
         print(f"Remaining rows after filtering: {len(df_filtered)}")
     else:
         df_filtered = df_deduped
-        print("▶️ No Lifestage filtering applied.")
+        print("▶️ No filtering applied - processing Full dataset.")
 
-    # Always prompt the user for price changes
+    # Rest of pipeline remains the same...
     price_changes = pc.create_price_changes_from_user_input()
 
     if price_changes:
         df_with_prices = comprehensive_price_change_handling(df_filtered, price_changes)
         
-        # Save to organized folders
         df_with_prices.to_csv(folders['filtered_data'] / 'price_filtered_data.csv', index=False)
         print(f"💾 Saved price filtered data to: {folders['filtered_data'] / 'price_filtered_data.csv'}")
 
@@ -143,11 +142,10 @@ def main_pipeline(lifestage_code='Full'):
         print(f"💾 Saved combined results to: {folders['combined_results'] / 'combined_mrr_arpu_results.csv'}")
 
         arr = combined_df['Ending MRR'].iloc[-2] * 12
-        print(f"📊 ARR for {lifestage_code}: ${arr:,.2f}")
+        print(f"📊 ARR for {performance_tier}: ${arr:,.2f}")
     else:
         df_without_prices = df_filtered
         
-        # Save to organized folders
         df_without_prices.to_csv(folders['filtered_data'] / 'baseline_filtered_data.csv', index=False)
         print(f"💾 Saved baseline filtered data to: {folders['filtered_data'] / 'baseline_filtered_data.csv'}")
 
@@ -162,16 +160,20 @@ def main_pipeline(lifestage_code='Full'):
         print(f"💾 Saved baseline combined results to: {folders['combined_results'] / 'baseline_combined_mrr_arpu_results.csv'}")
 
         arr = combined_df['Ending MRR'].iloc[-2] * 12
-        print(f"📊 Baseline ARR for {lifestage_code}: ${arr:,.2f}")
+        print(f"📊 Baseline ARR for {performance_tier}: ${arr:,.2f}")
 
-    print(f"✅ Pipeline completed for {lifestage_code}\n")
+    print(f"✅ Pipeline completed for {performance_tier}\n")
+
 
 def batch_run_pipeline(selected_keys=None):
+    """Updated batch pipeline for performance tiers"""
+    
     key_map = {
         0: 'Full',
-        1: 'Y1', 2: 'Y2', 3: 'Y3',
-        4: 'F1', 5: 'F2', 6: 'F3',
-        7: 'M1', 8: 'M2', 9: 'M3', 10: 'M4'
+        1: 'high_performers',
+        2: 'moderate_performers', 
+        3: 'underperformers'
+        
     }
 
     if selected_keys is None:
@@ -179,15 +181,18 @@ def batch_run_pipeline(selected_keys=None):
     else:
         selected_codes = [key_map[k] for k in selected_keys if k in key_map]
 
-    print("🚀 Starting batch pipeline run...")
-    print("="*50)
+    print("🚀 Starting batch pipeline run for performance tiers...")
+    print("="*60)
     
     for code in selected_codes:
         print(f"\n📋 Running pipeline for: {code}")
-        main_pipeline(lifestage_code=code)
+        main_pipeline(performance_tier=code)
 
     print("\n🎉 All batch runs complete!")
-    print("📁 Check the 'output' folder for organized results")
+    print("📁 Check the 'output' folder for performance tier results:")
+    print("   - output/high_performers/")
+    print("   - output/moderate_performers/") 
+    print("   - output/underperformers/")
 
 if __name__ == "__main__":
     batch_run_pipeline()  

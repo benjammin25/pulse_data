@@ -6,7 +6,7 @@ print(df_combined.info())"""
 
 
 
-df = pd.read_csv("output/Full/filtered_data/baseline_filtered_data.csv")
-print(df["Lifestage Code"].value_counts())
+df = pd.read_csv("output/underperformers/filtered_data/baseline_filtered_data.csv")
+print(df.shape[0])
 
 
