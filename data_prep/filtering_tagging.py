@@ -18,88 +18,95 @@ def analyze_and_handle_missing(df, folders):
     
     return df_cleaned
 
-def filter_on_performance_tier(df, tier):
-    """Filter dataframe by performance tier based on CXN Name"""
+
+
+def map_segments_to_performance_tiers():
+    """Map performance tiers to their segment numbers"""
     
-    # Define performance tier mappings based on visual color coding (green/yellow/red)
-    performance_mapping = {
+    return {
         'high_performers': [
-            # GREEN segments from your data
-            "You & I Tunes",
-            "WiFi Warriors", 
-            "The Pragmatics",
-            "Plugged-In Families",
-            "Cyber Sophisticates",
-            "Tech Nests",
-            "Tech Skeptics",
-            "Video Vistas",
-            "Dial-Up Duos",
+            "5",   # You & I Tunes
+            "11",  # WiFi Warriors 
+            "14",  # The Pragmatics
+            "2",   # Plugged-In Families
+            "13",  # Cyber Sophisticates
+            "3",   # Tech Nests
+            "42",  # Tech Skeptics
+            "27",  # Video Vistas
+            "48"   # Dial-Up Duos
         ],
         'moderate_performers': [
-            # YELLOW segments from your data  
-            "Low-Speed Boomers",
-            "Gadgets Galore",
-            "New Technorati",
-            "Technovators",
-            "Multimedia Families",
-            "Kids & Keyboards",
-            "Time Shifters",
-            "Broadband Boulevards",
-            "Opting Out",
-            "Bundled Burbs",
-            "Analoggers",
-            "Smart Gamers",
-            "Connected Country",
-            "Calling Circles",
-            "IM Nation",
-            "Plug & Play",
-            "Cyber Strivers",
-            "Discounts & Deals",
-            "Early-Bird TV",
-            "Internet Hinterlands",
-            "Antenna Land",
-            "High-Tech Society",
+            "25",  # Low-Speed Boomers
+            "19",  # Gadgets Galore
+            "18",  # New Technorati
+            "1",   # Technovators
+            "21",  # Multimedia Families
+            "16",  # Kids & Keyboards
+            "17",  # Time Shifters
+            "35",  # Broadband Boulevards
+            "36",  # Opting Out
+            "15",  # Bundled Burbs
+            "22",  # Analoggers
+            "10",  # Smart Gamers
+            "6",   # Connected Country
+            "8",   # Calling Circles
+            "29",  # IM Nation
+            "31",  # Plug & Play
+            "23",  # Cyber Strivers
+            "47",  # Discounts & Deals
+            "50",  # Early-Bird TV
+            "24",  # Internet Hinterlands
+            "41",  # Antenna Land
+            "4"    # High-Tech Society
         ],
         'underperformers': [
-            # RED segments from your data
-            "Big City, Small Tech",
-            "Old-Time Media",
-            "Digital Dreamers",
-            "Bucolic Basics",
-            "Gearing Up",
-            "Satellites & Silos",
-            "Landline Living",
-            "The Unconnected",
-            "Low-Tech Country",
-            "Satellite Seniors",
-            "Generation WiFi",
-            "Rural Transmissions",
-            "Leisurely Adopters",
-            "New Kids on the Grid",
-            "Video Homebodies",
-            "Last to Adopt",
-            "Techs and the City",
-            "Family Dishes",
-            "Dish Country",
-            "Tech-Free Frontier",
-            "Cinemaniacs",
-            "Techtown Lites",
-            "Unassigned",
+            "28",  # Big City, Small Tech
+            "46",  # Old-Time Media
+            "33",  # Digital Dreamers
+            "43",  # Bucolic Basics
+            "24",  # Gearing Up
+            "12",  # Satellites & Silos
+            "45",  # Landline Living
+            "52",  # The Unconnected
+            "40",  # Low-Tech Country
+            "49",  # Satellite Seniors
+            "7",   # Generation WiFi
+            "26",  # Rural Transmissions
+            "44",  # Leisurely Adopters
+            "38",  # New Kids on the Grid
+            "39",  # Video Homebodies
+            "53",  # Last to Adopt
+            "34",  # Techs and the City
+            "32",  # Family Dishes
+            "9",   # Dish Country
+            "51",  # Tech-Free Frontier
+            "30",  # Cinemaniacs
+            "27"   # Techtown Lites
         ]
     }
+
+def filter_on_performance_tier(df, tier):
+    """Filter dataframe by performance tier based on CXN Code (segment numbers)"""
     
-    if tier not in performance_mapping:
+    # Get segment numbers for this performance tier
+    tier_mapping = map_segments_to_performance_tiers()
+    
+    if tier not in tier_mapping:
         raise ValueError(f"Unknown performance tier: {tier}")
     
-    cxn_names = performance_mapping[tier]
-    filtered_df = df[df['CXN Name'].isin(cxn_names)].copy()
+    # Convert segment numbers to integers for matching
+    segment_numbers = [int(seg) for seg in tier_mapping[tier]]
+    
+    # Filter by CXN Code instead of CXN Name
+    filtered_df = df[df['CXN Code'].isin(segment_numbers)].copy()
     
     print(f"📊 Filtered for {tier}:")
-    print(f"   CXN Names included: {cxn_names}")
+    print(f"   Segment numbers included: {segment_numbers}")
     print(f"   Rows before filtering: {len(df)}")
     print(f"   Rows after filtering: {len(filtered_df)}")
     
     return filtered_df
+
 
 def filtering_tagging(filename, folders):
     df_raw = cm.load_and_initial_clean(filename)

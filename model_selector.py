@@ -1,4 +1,4 @@
-from models.segment_models import large_segment_model, full_dataset_model
+from models.segment_models import net_new_mrr_model, ending_mrr_model
 from pathlib import Path
 import pandas as pd
 
@@ -6,18 +6,34 @@ import pandas as pd
 
 def auto_select_performance_tier_model(csv_file_path, months_to_project=12):
     """
-    Auto-selects the appropriate model based on performance_tier
+    Auto-selects the appropriate model based on performance_tier with user choice for Full dataset
     """
     performance_tier = Path(csv_file_path).parts[-3]
-
 
     # Auto-selection logic based on performance_tier and customer counts
     if performance_tier in ['Full']:
         print(f"🔍 Auto-selecting Full Dataset Model for {performance_tier}")
-        return full_dataset_model(csv_file_path, months_to_project)
+        
+        # Prompt user for model type for Full dataset
+        print("\n🤖 MODEL SELECTION")
+        print("="*40)
+        print("Choose your model type:")
+        print("1. Ending MRR")
+        print("2. Net New MRR")
+        
+        while True:
+            choice = input("\nEnter your choice (1 or 2): ").strip()
+            if choice == "1":
+                print("✅ Selected: Linear Model")
+                return ending_mrr_model(csv_file_path, months_to_project)
+            elif choice == "2":
+                print("✅ Selected: Polynomial Model")
+                return net_new_mrr_model(csv_file_path, months_to_project)
+            else:
+                print("❌ Invalid choice. Please enter 1 or 2.")
     else:  
         print(f"🔍 Auto-selecting Small Segment Model for {performance_tier}")
-        return large_segment_model(csv_file_path, months_to_project)
+        return ending_mrr_model(csv_file_path, months_to_project)
     
 if __name__ == "__main__":
     # Example usage with auto-selection

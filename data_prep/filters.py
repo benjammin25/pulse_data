@@ -3,7 +3,7 @@ import pandas as pd
 def apply_business_filters(df):
     # Drop unneeded columns
     drop_cols = [
-        'Account Name', 'Full Address', 'GIS LOCID', 'User Name', 'CXN Code', 
+        'Account Name', 'Full Address', 'GIS LOCID', 'User Name', 
         'BH HP ID', 'City', 'Zip', 'User', 'Week Number (concurrent from 2024)',
         'Week Number', 'System Flag', 'Flag Code', 'Flag Name', 'Period ARPU'
     ]

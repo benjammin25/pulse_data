@@ -10,14 +10,15 @@ import warnings
 from sklearn.exceptions import ConvergenceWarning
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
-def full_dataset_model(csv_file_path, months_to_project=12):
+def ending_mrr_model(csv_file_path, months_to_project=12):
     """
     Enhanced comprehensive model for Full dataset with performance tier segmentation features
     """
     performance_tier = Path(csv_file_path).parts[-3]
     print(f"🎯 Enhanced Full Dataset Model for {performance_tier}")
-    print(f"   Tier: Performance-Based | Features: 10 | Alpha: 15.0")
+    print(f"   Tier: Performance-Based | Features: 11 | Alpha: 15.0")
 
+    
     # Load and prepare main data
     df = pd.read_csv(csv_file_path, encoding='latin-1', low_memory=False)
     df = df[:-1]  # Remove last row
@@ -33,10 +34,25 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     for feature_name, feature_data in segmentation_features.items():
         df[feature_name] = feature_data
 
-    # Performance tier feature set (10 features)
-    X = df[["Month_Sequential", "New MRR", "Churn", "Ending Count", "ARPU", "Month_Number", "Expansion",   
-            "high_performers_net_new_mrr", "moderate_performers_net_new_mrr", "underperformers_net_new_mrr"
-           ]].values
+
+
+    # Add this to your full_dataset_model function after loading segmentation features:
+
+    # Calculate total segmentation MRR
+    df['total_segment_mrr'] = (df['high_performers_net_new_mrr'] + 
+                            df['moderate_performers_net_new_mrr'] + 
+                            df['underperformers_net_new_mrr'])
+
+    # Create ratio features (these should be uncorrelated)
+    df['high_performers_ratio'] = df['high_performers_net_new_mrr'] / df['total_segment_mrr']
+    df['moderate_performers_ratio'] = df['moderate_performers_net_new_mrr'] / df['total_segment_mrr'] 
+    df['underperformers_ratio'] = df['underperformers_net_new_mrr'] / df['total_segment_mrr']
+
+    # Use ratios in your model instead of absolute values
+    X = df[["Month_Sequential", "Churn", "Ending Count", "ARPU", "Month_Number", "Expansion", "Base", "Site_Opens",
+            "high_performers_ratio", "moderate_performers_ratio", "underperformers_ratio"
+        ]].values  # 11 features
+
     y = df["Ending MRR"].values
 
     # Clean data
@@ -51,6 +67,63 @@ def full_dataset_model(csv_file_path, months_to_project=12):
     ])
 
     return _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, "Performance Tier Model")
+
+def net_new_mrr_model(csv_file_path, months_to_project=12):
+    """
+    Polynomial model for Full dataset with performance tier segmentation features
+    Uses degree=1 polynomial features for capturing linear relationships
+    """
+    performance_tier = Path(csv_file_path).parts[-3]
+    print(f"🎯 Polynomial Model for {performance_tier}")
+    print(f"   Tier: Performance-Based | Features: 4 | Model: Polynomial (degree=1) | Alpha: 1.0")
+
+    # Load and prepare main data
+    df = pd.read_csv(csv_file_path, encoding='latin-1', low_memory=False)
+    df = df[:-1]  # Remove last row
+    df['Month'] = pd.to_datetime(df['Month'])
+
+    # Add Month Number for seasonal effects
+    df['Month_Number'] = df['Month'].dt.month
+    df["Quarter"] = df["Month"].dt.quarter
+
+    # Create performance tier segmentation features
+    segmentation_features = create_lifecycle_grouped_features(ratio_type="new_mrr")
+
+    # Add segmentation features to main dataframe
+    for feature_name, feature_data in segmentation_features.items():
+        df[feature_name] = feature_data
+
+
+    # Create quality performers from the actual Net New MRR values
+    df['qualityperformers_new_mrr'] = df['high_performers_new_mrr'] + df['moderate_performers_new_mrr']
+
+    # Then calculate the ratio
+    df['total_segment_mrr'] = df['qualityperformers_new_mrr'] + df['underperformers_new_mrr']
+    df['qualityperformers_ratio'] = df['qualityperformers_new_mrr'] / df['total_segment_mrr']
+    df['underperformers_ratio'] = df['underperformers_new_mrr'] / df['total_segment_mrr']
+
+    df['Quarter_NewCount_interaction'] = df['Quarter'] * df['New Count']
+    df['Month_Quality_interaction'] = df['Month_Number'] * df['qualityperformers_ratio']
+
+    # Feature selection 
+    X = df[["Month_Sequential", "Month_Number", "Quarter", "New Count", "Quarter_NewCount_interaction", "Month_Quality_interaction",      
+        "qualityperformers_ratio", "underperformers_ratio"]].values    
+    
+    y = df["Net New MRR"].values
+
+    # Clean data
+    if not np.isfinite(X).all():
+        print("Warning: Found non-finite values in features. Cleaning...")
+        X = np.nan_to_num(X, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Create polynomial model pipeline
+    poly_pipeline = Pipeline([
+        ('poly', PolynomialFeatures(degree=1, include_bias=False)),
+        ('lasso', Lasso(alpha=1.0))  # Higher alpha for polynomial to prevent overfitting
+    ])
+
+    return _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, "Linear Model", "Net New MRR")
+
 
 def large_segment_model(csv_file_path, months_to_project=12):
     """
