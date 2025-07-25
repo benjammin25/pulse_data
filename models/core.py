@@ -33,10 +33,11 @@ def _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, mod
     # Dynamic feature names based on target variable
     if target_variable == "Ending MRR":
         feature_names = ["Month_Sequential", "Churn", "Ending Count", "ARPU", "Month_Number", "Expansion", "Base", "Site_Opens",
-            "high_performers_ratio", "moderate_performers_ratio", "underperformers_ratio"]
-    elif target_variable == "Net New MRR":
-        feature_names = ["Month_Sequential", "Month_Number", "Quarter", "New Count", "Quarter_NewCount_interaction", "Month_Quality_interaction",
             "qualityperformers_ratio", "underperformers_ratio"]
+    elif target_variable == "Net New MRR":
+        feature_names = ["Month_Sequential", "Month_Number", "Month_Sequential_squared", "Good_Months", "Bad_Months",
+                        "H2_indicator",  "qualityperformers_ratio", "quality_weighted_performance", "underperformers_ratio",
+                         "high_to_under_direct"]
     else:
         feature_names = [f"Feature_{i}" for i in range(X.shape[1])]
 
@@ -63,18 +64,20 @@ def _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, mod
     last_month_seq = df['Month_Sequential'].max()
     last_date = df['Month'].max()
     future_months_seq = np.arange(last_month_seq + 1, last_month_seq + 1 + months_to_project)
+    future_months_seq_squared = future_months_seq ** 2
     future_dates = pd.date_range(start=last_date + pd.DateOffset(months=1), periods=months_to_project, freq='ME')
     future_month_nums = [future_date.month for future_date in future_dates]
     future_quarters = [future_date.quarter for future_date in future_dates]
-    
+    future_h2_indicators = [int(month_num > 6) for month_num in future_month_nums]
+
     # Build future feature matrix based on target variable
     if target_variable == "Ending MRR":
         # Ending MRR future projections - 11 features
-        churn_improvement = np.linspace(df['Churn'].iloc[-1], df['Churn'].iloc[-1] * 0.95, months_to_project)
+        churn_improvement = np.linspace(df['Churn'].iloc[-1], df['Churn'].iloc[-1] * 1.00, months_to_project)
         customer_growth = np.linspace(df['Ending Count'].iloc[-1], df['Ending Count'].iloc[-1] * 1.08, months_to_project)
         arpu_growth = np.linspace(df['ARPU'].iloc[-1], df['ARPU'].iloc[-1] * 1.05, months_to_project)
-        expansion_growth = np.linspace(df['Expansion'].iloc[-1], df['Expansion'].iloc[-1] * 1.10, months_to_project)
-        base_growth = np.linspace(df['Base_Added'].iloc[-1], df['Base_Added'].iloc[-1] * 1.00, months_to_project)
+        expansion_growth = np.linspace(df['Expansion'].iloc[-1], df['Expansion'].iloc[-1] * 1.00, months_to_project)
+        base_growth = np.linspace(df['Base'].iloc[-1], df['Base'].iloc[-1] * 1.00, months_to_project)
         site_growth = np.linspace(df['Site_Opens'].iloc[-1], df['Site_Opens'].iloc[-1] * 1.00, months_to_project)
 
         future_X = np.column_stack([
@@ -86,29 +89,33 @@ def _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, mod
             expansion_growth,                    # Expansion
             base_growth,                         # Base_Added
             site_growth,                         # Site_Opens
-            [df['high_performers_ratio'].iloc[-1]] * months_to_project,     # high_performers_ratio
-            [df['moderate_performers_ratio'].iloc[-1]] * months_to_project, # moderate_performers_ratio
+            [df['qualityperformers_ratio'].iloc[-1]] * months_to_project,     # high_performers_ratio
             [df['underperformers_ratio'].iloc[-1]] * months_to_project,     # underperformers_ratio
         ])
             
     elif target_variable == "Net New MRR":
         # Net New MRR future projections - 9 features
         new_count_growth = np.linspace(df['New Count'].iloc[-1], df['New Count'].iloc[-1] * 1.00, months_to_project)
-        quarter_new_count_growth = np.linspace(df["Quarter_NewCount_interaction"].iloc[-1], df["Quarter_NewCount_interaction"].iloc[-1]*1.00, months_to_project)
-        month_quality_growth = np.linspace(df["Month_Quality_interaction"].iloc[-1], df["Month_Quality_interaction"].iloc[-1]*1.00, months_to_project)
+        quality_season_growth = np.linspace(df["Quality_Season_interaction"].iloc[-1], df["Quality_Season_interaction"].iloc[-1]*1.00, months_to_project)
+
+        # Calculate good/bad months for future
+        future_good_months = [int(month in [3, 5, 6]) for month in future_month_nums]
+        future_bad_months = [int(month in [7, 8, 10, 12]) for month in future_month_nums]
+        
         future_X = np.column_stack([
             future_months_seq,                   # Month_Sequential
+            future_months_seq_squared,           # Month_Sequential_squared
             future_month_nums,                   # Month_Number
-            future_quarters,
-            new_count_growth,
-            quarter_new_count_growth,
-            month_quality_growth,
-            #site_growth,                         # Site_Opens
-            #base_growth,                         # Cumulative_Base
-            #take_rate_growth,                    # Take_Rate
-            #customer_growth,                     # Starting Count
-            [df['qualityperformers_ratio'].iloc[-1]] * months_to_project,     # high_performers_ratio
-            [df['underperformers_ratio'].iloc[-1]] * months_to_project,     # underperformers_ratio
+            future_good_months,                  # Good_Months
+            future_bad_months,                   # Bad_Months
+            future_h2_indicators,                # H2_indicator
+            #future_quarters,                     # Quarter
+            #new_count_growth,                    # New Count
+            #quality_season_growth,               # Quality_Season_interaction
+            [df['qualityperformers_ratio'].iloc[-1]] * months_to_project,
+            [df['quality_weighted_performance'].iloc[-1]] * months_to_project,
+            [df['underperformers_ratio'].iloc[-1]] * months_to_project,
+            [df['high_to_under_direct'].iloc[-1]] * months_to_project
         ])
     
     # Clean future data
@@ -166,25 +173,26 @@ def _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, mod
     
     # Add trend line for full period
     all_months_seq = np.concatenate([df['Month_Sequential'], future_months_seq])
+    all_months_seq_squared = all_months_seq ** 2
     all_dates = pd.concat([df['Month'], pd.Series(future_dates)])
     
     # Build trend line data based on target variable
     if target_variable == "Ending MRR":
         # Ending MRR trend line
         historical_month_nums = df['Month'].dt.month.tolist()
+        
         all_month_nums = historical_month_nums + future_month_nums
         
         all_X_trend = np.column_stack([
-            all_months_seq,                                                                 # Month_Sequential
+            all_months_seq,                                                         # Month_Sequential
             np.concatenate([df['Churn'], churn_improvement]),                              # Churn
             np.concatenate([df['Ending Count'], customer_growth]),                         # Ending Count
             np.concatenate([df['ARPU'], arpu_growth]),                                     # ARPU
             all_month_nums,                                                                # Month_Number
             np.concatenate([df['Expansion'], expansion_growth]),                           # Expansion
-            np.concatenate([df['Base_Added'], base_growth]),                               # Base_Added
+            np.concatenate([df['Base'], base_growth]),                               # Base_Added
             np.concatenate([df['Site_Opens'], site_growth]),                               # Site_Opens
-            np.concatenate([df['high_performers_ratio'], [df['high_performers_ratio'].iloc[-1]] * months_to_project]),     # high_performers_ratio
-            np.concatenate([df['moderate_performers_ratio'], [df['moderate_performers_ratio'].iloc[-1]] * months_to_project]),  # moderate_performers_ratio
+            np.concatenate([df['qualityperformers_ratio'], [df['qualityperformers_ratio'].iloc[-1]] * months_to_project]),     # high_performers_ratio
             np.concatenate([df['underperformers_ratio'], [df['underperformers_ratio'].iloc[-1]] * months_to_project]),    # underperformers_ratio
         ])
         
@@ -192,22 +200,27 @@ def _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, mod
         # Net New MRR trend line
         historical_month_nums = df['Month'].dt.month.tolist()
         historical_quarters = df['Month'].dt.quarter.tolist()
+        historical_h2_indicators = df['H2_indicator'].values
         all_month_nums = historical_month_nums + future_month_nums
         all_quarters = historical_quarters + future_quarters
+
+        all_good_months = [int(month in [3, 5, 6]) for month in all_month_nums]
+        all_bad_months = [int(month in [7, 8, 10, 12]) for month in all_month_nums]
         
         all_X_trend = np.column_stack([
             all_months_seq,                                                                # Month_Sequential
+            all_months_seq_squared,                                                        # Month_Sequential_squared
             all_month_nums,                                                                # Month_Number
-            all_quarters,
-            np.concatenate([df['New Count'], new_count_growth]), 
-            np.concatenate([df["Quarter_NewCount_interaction"], quarter_new_count_growth]),
-            np.concatenate([df["Month_Quality_interaction"], month_quality_growth]),
-            #np.concatenate([df['Site_Opens'], site_growth]),                               # Site_Opens
-            #np.concatenate([df['Cumulative_Base'], base_growth]),                          # Cumulative_Base
-            #np.concatenate([df['Take_Rate'], take_rate_growth]),                           # Take_Rate
-            #np.concatenate([df['Starting Count'], customer_growth]),                       # Starting Count
-            np.concatenate([df['qualityperformers_ratio'], [df['qualityperformers_ratio'].iloc[-1]] * months_to_project]),     # high_performers_ratio
-            np.concatenate([df['underperformers_ratio'], [df['underperformers_ratio'].iloc[-1]] * months_to_project]),    # underperformers_ratio
+            all_good_months,                                                               # Good_Months
+            all_bad_months,                                                                # Bad_Months
+            np.concatenate([historical_h2_indicators, future_h2_indicators]),             # H2_indicator
+            #all_quarters,                                                                  # Quarter
+            #np.concatenate([df['New Count'], new_count_growth]),                          # New Count
+            #np.concatenate([df["Quality_Season_interaction"], quality_season_growth]),    # Quality_Season_interaction
+            np.concatenate([df['qualityperformers_ratio'], [df['qualityperformers_ratio'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['quality_weighted_performance'], [df['quality_weighted_performance'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['underperformers_ratio'], [df['underperformers_ratio'].iloc[-1]] * months_to_project]),
+            np.concatenate([df['high_to_under_direct'], [df['high_to_under_direct'].iloc[-1]] * months_to_project])
         ])
     
     # Clean trend data and generate trend line

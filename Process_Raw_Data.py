@@ -205,9 +205,7 @@ def main_pipeline(performance_tier='Full'):
         combined_df["Cumulative_Base"] = combined_df["Base"].cumsum()
         combined_df['Take_Rate'] = np.where(
             combined_df['Cumulative_Base'] > 0,
-            combined_df['Ending Count'] / combined_df['Cumulative_Base'],
-            0  
-        )
+            combined_df['Ending Count'] / combined_df['Cumulative_Base'], 0)
 
         combined_df.to_csv(folders['combined_results'] / 'baseline_combined_mrr_arpu_results.csv', index=False)
         print(f"💾 Saved baseline combined results to: {folders['combined_results'] / 'baseline_combined_mrr_arpu_results.csv'}")
