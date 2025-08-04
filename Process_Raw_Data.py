@@ -247,4 +247,4 @@ def batch_run_pipeline(selected_keys=None):
 
 
 if __name__ == "__main__":
-    batch_run_pipeline()
+    batch_run_pipeline([0])
