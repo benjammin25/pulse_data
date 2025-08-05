@@ -58,6 +58,11 @@ def _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, mod
     
     # Future projections
     print(f"\n🔮 Projecting {months_to_project} months ahead...")
+
+    # In your code, add these calculations:
+    print(df['high_to_under_direct'].tail())
+    print(df['underperformers_new_mrr'].tail())
+    print(df['high_performers_new_mrr'].tail())
     
     # Create future dates
     last_month_seq = df['Month_Sequential'].max()
@@ -73,7 +78,7 @@ def _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, mod
     if target_variable == "Ending MRR":
         # Ending MRR future projections - 11 features
         churn_improvement = np.linspace(df['Churn'].iloc[-1], df['Churn'].iloc[-1] * 1.00, months_to_project)
-        customer_growth = np.linspace(df['Ending Count'].iloc[-1], df['Ending Count'].iloc[-1] * 1.20, months_to_project)
+        customer_growth = np.linspace(df['Ending Count'].iloc[-1], df['Ending Count'].iloc[-1] * 1.00, months_to_project)
         arpu_growth = np.linspace(df['ARPU'].iloc[-1], df['ARPU'].iloc[-1] * 1.10, months_to_project)
         expansion_growth = np.linspace(df['Expansion'].iloc[-1], df['Expansion'].iloc[-1] * 1.00, months_to_project)
         base_growth = np.linspace(df['Base'].iloc[-1], df['Base'].iloc[-1] * 1.00, months_to_project)
@@ -132,7 +137,7 @@ def _run_model(df, X, y, poly_pipeline, performance_tier, months_to_project, mod
     if np.isnan(future_X).any():
         print("Warning: Still found NaN values in future features. Replacing with zeros...")
         future_X = np.where(np.isnan(future_X), 0.0, future_X)
-
+    
     # Make predictions
     future_predictions = poly_pipeline.predict(future_X)
     

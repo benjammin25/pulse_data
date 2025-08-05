@@ -135,7 +135,8 @@ def net_new_mrr_model(csv_file_path, months_to_project=12):
     # Robust division with multiple protections
     denominator = under_perf_clean.abs() + 100
     denominator = np.where(denominator == 0, 100, denominator)  # Extra protection
-    df['high_to_under_direct'] = high_perf_clean / denominator
+    df['high_to_under_direct'] = np.log1p(high_perf_clean) / np.log1p(under_perf_clean.abs() + 100)
+
     
     # Final cleanup for any remaining NaN/inf values
     df['high_to_under_direct'] = df['high_to_under_direct'].fillna(0)
