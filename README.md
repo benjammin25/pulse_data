@@ -9,7 +9,7 @@ This system transforms raw subscription data into actionable revenue forecasts u
 ## 🚀 Key Features
 
 ### **Intelligent Customer Segmentation**
-- **Performance-Based Tiers**: Automatically segments customers into high, moderate, and underperformers based on revenue contribution
+- **Performance-Based Tiers**: Takes in static segment map of customers into high, moderate, and underperformers based on revenue contribution
 - **Dynamic Segmentation**: Replaces traditional demographic groupings with data-driven performance metrics
 - **Revenue Impact Analysis**: Identifies high-performers contributing 4.5x more revenue than low-performers
 
